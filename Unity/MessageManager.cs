@@ -18,27 +18,27 @@ using System;
 
 namespace Common
 {
-    public class MessageManager
+    public class MessageManager<T>
     {
-        static MessageManager mInstance;
-        public static MessageManager Instance
+        static MessageManager<T> mInstance;
+        public static MessageManager<T> Instance
         {
             get
             {
-                return mInstance ?? (mInstance = new MessageManager());
+                return mInstance ?? (mInstance = new MessageManager<T>());
             }
         }
-        Dictionary<string, Action<object[]>> mMessageDict = new Dictionary<string, Action<object[]>>(32);
+        Dictionary<string, Action<T>> mMessageDict = new Dictionary<string, Action<T>>(32);
 
         // Dictionary to distribute the message cache, mainly to process the situation that the message has not been registered but Dispatch has been called
-        Dictionary<string, object[]> mDispatchCacheDict = new Dictionary<string, object[]>(16);
+        Dictionary<string, T> mDispatchCacheDict = new Dictionary<string, T>(16);
 
         private MessageManager() { }
 
         // Subscribe
-        public void Subscribe(string message, Action<object[]> action)
+        public void Subscribe(string message, Action<T> action)
         {
-            Action<object[]> value = null;
+            Action<T> value = null;
 
             if (mMessageDict.TryGetValue(message, out value))
             {
@@ -54,11 +54,29 @@ namespace Common
         // Unsubscribe
         public void Unsubscribe(string message)
         {
-            mMessageDict.Remove(message);
+            if (mMessageDict.ContainsKey(message))
+            {
+                mMessageDict.Remove(message);
+                if (mMessageDict[message] == null)
+                    mMessageDict.Remove(message);
+            }
+            
+        }
+
+        public void Unsubscribe(string message, Action<T> action)
+        {
+            if (mMessageDict.ContainsKey(message))
+            {
+                Action<T> temp = mMessageDict[message];
+                temp -= action;
+
+                if (mMessageDict[message] == null)
+                    mMessageDict.Remove(message);
+            }
         }
 
         // Dispatch message
-        public void Dispatch(string message, object[] args = null, bool addToCache = false)
+        public void Dispatch(string message, T args, bool addToCache = false)
         {
             if (addToCache)
             {
@@ -66,7 +84,7 @@ namespace Common
             }
             else
             {
-                Action<object[]> value = null;
+                Action<T> value = null;
                 if (mMessageDict.TryGetValue(message, out value))
                 {
                     value(args);
@@ -77,7 +95,7 @@ namespace Common
         // Disptch message cache
         public void ProcessDispathCache(string message)
         {
-            object[] value = null;
+            T value;
             if (mDispatchCacheDict.TryGetValue(message, out value))
             {
                 Dispatch(message, value);
