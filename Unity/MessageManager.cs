@@ -18,7 +18,7 @@ using System;
 
 namespace Common
 {
-    public class MessageManager<T>
+    public class MessageManager<T> where T: class
     {
         static MessageManager<T> mInstance;
         public static MessageManager<T> Instance
@@ -54,21 +54,17 @@ namespace Common
         // Unsubscribe
         public void Unsubscribe(string message)
         {
-            if (mMessageDict.ContainsKey(message))
-            {
-                mMessageDict.Remove(message);
-                if (mMessageDict[message] == null)
-                    mMessageDict.Remove(message);
-            }
-            
+            mMessageDict.Remove(message);
         }
 
         public void Unsubscribe(string message, Action<T> action)
         {
-            if (mMessageDict.ContainsKey(message))
+            Action<T> value = null;
+
+            if (mMessageDict.TryGetValue(message, out value))
             {
-                Action<T> temp = mMessageDict[message];
-                temp -= action;
+                value -= action;
+                mMessageDict[message] = value;
 
                 if (mMessageDict[message] == null)
                     mMessageDict.Remove(message);
@@ -95,7 +91,7 @@ namespace Common
         // Disptch message cache
         public void ProcessDispathCache(string message)
         {
-            T value;
+            T value = null;
             if (mDispatchCacheDict.TryGetValue(message, out value))
             {
                 Dispatch(message, value);
